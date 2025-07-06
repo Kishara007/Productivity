@@ -8,44 +8,110 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f0f4f8;
+            background-color: #f1f5f9; /* slate-100 */
+            color: #1e293b; /* slate-800 */
         }
-        .timetable-scroll {
-            scrollbar-width: thin;
-            scrollbar-color: #0077b6 #e0f7fa;
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+        .main-container {
+            position: relative;
+            z-index: 1;
+        }
+        .panel {
+            background-color: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.07), 0 4px 6px -4px rgb(0 0 0 / 0.1);
         }
         .timetable-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
-        .timetable-scroll::-webkit-scrollbar-track { background: #e0f7fa; border-radius: 10px; }
-        .timetable-scroll::-webkit-scrollbar-thumb { background-color: #0077b6; border-radius: 10px; border: 2px solid #e0f7fa; }
-        .task-card { transition: all 0.3s ease; cursor: pointer; }
-        .task-card:hover { transform: translateY(-4px); box-shadow: 0 10px 15px -3px rgba(0, 78, 146, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
-        .task-card.completed { background-color: #caf0f8 !important; border-color: #90e0ef; opacity: 0.7; }
-        .task-card.completed .task-title { text-decoration: line-through; }
-        .modal-overlay, .tab-content { transition: opacity 0.3s ease; }
+        .timetable-scroll::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 10px; }
+        .timetable-scroll::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 10px; }
+        .task-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            border-left-width: 4px;
+        }
+        .task-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+        .task-card.completed {
+            background-color: #f0fdfa !important; /* teal-50 */
+            opacity: 0.7;
+        }
+        .task-card.completed .task-title { text-decoration: line-through; text-decoration-color: #14b8a6; }
+        .modal-overlay { transition: opacity 0.3s ease; background: rgba(30, 41, 59, 0.6); }
         .modal-content { transition: transform 0.3s ease; }
-        .day-column.today { background-color: #ffffff; border: 2px solid #0077b6; border-radius: 0.75rem; }
-        .tab-btn { transition: all 0.2s ease-in-out; }
-        .tab-btn.active { background-color: #0077b6; color: white; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); }
-        .progress-bar-container { background-color: #e0f7fa; border-radius: 0.5rem; overflow: hidden; }
-        .progress-bar { background-color: #00b4d8; transition: width 0.5s ease-in-out; }
+        .day-column.today {
+            background-color: #f0f9ff; /* sky-50 */
+            border: 1px solid #bae6fd; /* sky-200 */
+        }
+        .tab-btn {
+            transition: all 0.3s ease-in-out;
+            position: relative;
+            color: #475569; /* slate-600 */
+        }
+        .tab-btn.active {
+            color: #0f766e; /* teal-700 */
+        }
+        .tab-btn:before {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 3px;
+            background: #14b8a6; /* teal-500 */
+            border-radius: 2px;
+            transition: width 0.3s ease-in-out;
+        }
+        .tab-btn.active:before {
+            width: 70%;
+        }
+        .progress-bar-container { background-color: #e2e8f0; border-radius: 0.5rem; overflow: hidden; }
+        .progress-bar {
+            background: #2dd4bf; /* teal-400 */
+            transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .btn-primary {
+            background-color: #14b8a6; /* teal-500 */
+            transition: background-color 0.3s ease;
+        }
+        .btn-primary:hover {
+            background-color: #0f766e; /* teal-700 */
+        }
+        .btn-danger {
+            background-color: #ef4444; /* red-500 */
+            transition: background-color 0.3s ease;
+        }
+        .btn-danger:hover {
+            background-color: #dc2626; /* red-600 */
+        }
     </style>
 </head>
-<body class="text-[#00294e]">
-
-    <div id="main-dashboard" class="container mx-auto p-4 md:p-6 max-w-7xl">
+<body>
+    <canvas id="bg-canvas"></canvas>
+    <div id="main-dashboard" class="main-container container mx-auto p-4 md:p-6 max-w-7xl">
         <header class="text-center mb-8">
-            <h1 class="text-4xl md:text-5xl font-extrabold text-[#004e92] mb-2">My Productivity Dashboard</h1>
-            <p class="text-lg text-[#1a6f9a] mb-4">Your all-in-one system for focus, progress, and rewards.</p>
-            <button id="add-new-task-main" class="bg-green-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-600 transition-colors shadow-md">
+            <h1 class="text-4xl md:text-5xl font-extrabold text-slate-800 mb-2 tracking-tight">Productivity Dashboard</h1>
+            <p class="text-lg text-slate-500 mb-6">Focus, Progress, and Rewards, Reimagined.</p>
+            <button id="add-new-task-main" class="btn-primary text-white font-bold py-3 px-8 rounded-lg shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-300">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" /></svg>
                 Add New Task
             </button>
         </header>
 
-        <nav class="mb-8 flex justify-center bg-white/50 p-2 rounded-xl shadow-sm backdrop-blur-sm">
+        <nav class="mb-8 flex justify-center bg-white/70 backdrop-blur-sm p-2 rounded-xl shadow-sm">
             <button data-tab="dashboard" class="tab-btn active font-semibold py-2 px-6 rounded-lg">Dashboard</button>
             <button data-tab="analytics" class="tab-btn font-semibold py-2 px-6 rounded-lg">Analytics</button>
             <button data-tab="plan" class="tab-btn font-semibold py-2 px-6 rounded-lg">My Plan</button>
@@ -53,161 +119,85 @@
 
         <main>
             <div id="dashboard" class="tab-content">
-                <section id="dashboard-stats" class="mb-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div class="bg-white rounded-lg shadow-md p-4 text-center">
-                        <div id="planned-hours" class="text-4xl font-extrabold text-[#004e92]">0.0</div>
-                        <div class="text-sm font-semibold text-[#1a6f9a]">Planned Hours Today</div>
+                <section id="dashboard-stats" class="mb-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="panel p-6 text-center">
+                        <div id="planned-hours" class="text-5xl font-black text-slate-800">0.0</div>
+                        <div class="text-sm font-semibold text-teal-600 mt-1 tracking-wider">PLANNED HOURS</div>
                     </div>
-                    <div class="bg-white rounded-lg shadow-md p-4 text-center">
-                        <div id="actual-hours" class="text-4xl font-extrabold text-[#0077b6]">0.0</div>
-                        <div class="text-sm font-semibold text-[#1a6f9a]">Actual Hours Today</div>
+                    <div class="panel p-6 text-center">
+                        <div id="actual-hours" class="text-5xl font-black text-slate-800">0.0</div>
+                        <div class="text-sm font-semibold text-teal-600 mt-1 tracking-wider">ACTUAL HOURS</div>
                     </div>
-                    <div class="bg-white rounded-lg shadow-md p-4 text-center">
-                        <div id="completion-rate" class="text-4xl font-extrabold text-[#00b4d8]">0%</div>
-                        <div class="text-sm font-semibold text-[#1a6f9a]">Today's Completion</div>
+                    <div class="panel p-6 text-center">
+                        <div id="completion-rate" class="text-5xl font-black text-slate-800">0%</div>
+                        <div class="text-sm font-semibold text-teal-600 mt-1 tracking-wider">COMPLETION</div>
                     </div>
                 </section>
-                <section id="interactive-timetable" class="bg-white rounded-lg shadow-md p-4 md:p-6">
-                    <h2 class="text-2xl font-bold text-center mb-4 text-[#004e92]">This Week's Schedule</h2>
+                <section id="interactive-timetable" class="panel p-4 md:p-6">
+                    <h2 class="text-2xl font-bold text-center mb-6 text-slate-700">This Week's Schedule</h2>
                     <div id="timetable-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4 timetable-scroll overflow-x-auto pb-4"></div>
                 </section>
             </div>
 
             <div id="analytics" class="tab-content hidden">
                  <section class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <div class="bg-white rounded-lg shadow-md p-6">
-                        <h2 class="text-2xl font-bold mb-4 text-[#004e92]">Weekly Earnings Progress</h2>
-                        <div class="mb-4">
-                            <div class="flex justify-between items-end mb-1">
-                                <span class="font-bold text-lg">Weekly Earnings</span>
-                                <div>
-                                    <span id="weekly-points-earned" class="font-extrabold text-2xl text-[#0077b6]">$0</span>
-                                </div>
-                            </div>
-                            <div class="progress-bar-container h-4 w-full">
-                                <div id="weekly-progress-bar" class="progress-bar h-4 rounded-r-lg"></div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="bg-white rounded-lg shadow-md p-6">
-                        <h2 class="text-2xl font-bold mb-4 text-[#004e92]">Daily Earnings Breakdown</h2>
-                        <div class="h-64"><canvas id="analytics-points-chart"></canvas></div>
-                    </div>
-                    <div class="bg-white rounded-lg shadow-md p-6">
-                        <h2 class="text-2xl font-bold mb-4 text-[#004e92]">Category Completion</h2>
-                        <div class="h-64"><canvas id="analytics-category-chart"></canvas></div>
-                    </div>
-                    <div class="bg-white rounded-lg shadow-md p-6">
-                        <h2 class="text-2xl font-bold mb-4 text-[#004e92]">Weekly Hours</h2>
-                        <div class="h-64"><canvas id="analytics-hours-chart"></canvas></div>
-                    </div>
+                    <div class="panel p-6"><h2 class="text-2xl font-bold mb-4 text-slate-700">Weekly Earnings Progress</h2><div class="mb-4"><div class="flex justify-between items-end mb-1"><span class="font-bold text-lg text-slate-600">Weekly Earnings</span><div><span id="weekly-points-earned" class="font-extrabold text-2xl text-teal-600">$0</span></div></div><div class="progress-bar-container h-4 w-full"><div id="weekly-progress-bar" class="progress-bar h-4"></div></div></div></div>
+                    <div class="panel p-6"><h2 class="text-2xl font-bold mb-4 text-slate-700">Daily Earnings Breakdown</h2><div class="h-64"><canvas id="analytics-points-chart"></canvas></div></div>
+                    <div class="panel p-6"><h2 class="text-2xl font-bold mb-4 text-slate-700">Category Completion</h2><div class="h-64"><canvas id="analytics-category-chart"></canvas></div></div>
+                    <div class="panel p-6"><h2 class="text-2xl font-bold mb-4 text-slate-700">Weekly Hours</h2><div class="h-64"><canvas id="analytics-hours-chart"></canvas></div></div>
                 </section>
             </div>
 
             <div id="plan" class="tab-content hidden">
                <section class="space-y-8">
-                    <div class="bg-white rounded-lg shadow-md p-6">
-                        <h2 class="text-2xl font-bold mb-4 text-[#004e92]">Weekly Progress</h2>
-                        <p class="text-[#1a6f9a] mb-4">This bar shows your completed hours against your total scheduled hours for the week.</p>
-                        <div class="progress-bar-container h-6 w-full">
-                            <div id="plan-weekly-progress" class="progress-bar h-6 flex items-center justify-center text-white font-bold"></div>
-                        </div>
+                    <div class="panel p-6"><h2 class="text-2xl font-bold mb-4 text-slate-700">Weekly Progress</h2><p class="text-slate-500 mb-4">Completed hours vs. total scheduled hours for the week.</p><div class="progress-bar-container h-6 w-full"><div id="plan-weekly-progress" class="progress-bar h-6 flex items-center justify-center text-white font-bold"></div></div></div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div class="panel p-6"><h2 class="text-2xl font-bold mb-4 text-slate-700">Category Allocation</h2><p class="text-slate-500 mb-4">Breakdown of scheduled hours by category.</p><div class="h-64"><canvas id="plan-weekday-allocation-chart"></canvas></div></div>
+                        <div class="panel p-6"><h2 class="text-2xl font-bold mb-4 text-slate-700">Earnings by Category</h2><p class="text-slate-500 mb-4">Total potential earnings from each category.</p><div class="h-64"><canvas id="plan-growth-focus-chart"></canvas></div></div>
                     </div>
-                     <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div class="bg-white rounded-lg shadow-md p-6">
-                            <h2 class="text-2xl font-bold mb-4 text-[#004e92]">Category Allocation</h2>
-                             <p class="text-[#1a6f9a] mb-4">A breakdown of your scheduled hours by category.</p>
-                            <div class="h-64"><canvas id="plan-weekday-allocation-chart"></canvas></div>
-                        </div>
-                        <div class="bg-white rounded-lg shadow-md p-6">
-                            <h2 class="text-2xl font-bold mb-4 text-[#004e92]">Earnings by Category</h2>
-                            <p class="text-[#1a6f9a] mb-4">Total potential earnings from each category per week.</p>
-                            <div class="h-64"><canvas id="plan-growth-focus-chart"></canvas></div>
-                        </div>
-                     </div>
                </section>
             </div>
         </main>
     </div>
 
-    <!-- Universal Task Modal -->
-    <div id="task-modal" class="modal-overlay fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden z-50">
-        <div class="modal-content bg-white w-full max-w-md p-6 rounded-2xl shadow-xl transform scale-95">
-            <div class="flex justify-between items-center mb-4">
-                <h3 id="modal-title" class="text-2xl font-bold text-[#004e92]">Task Details</h3>
-                <button id="close-modal-btn" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
-            </div>
-            
-            <!-- View Mode Content -->
+    <div id="task-modal" class="modal-overlay fixed inset-0 flex items-center justify-center p-4 hidden z-50">
+        <div class="modal-content panel w-full max-w-md p-6 transform scale-95">
+            <div class="flex justify-between items-center mb-4"><h3 id="modal-title" class="text-2xl font-bold text-slate-800">Task Details</h3><button id="close-modal-btn" class="text-slate-400 hover:text-slate-800 text-3xl font-bold">&times;</button></div>
             <div id="modal-view-content">
-                <p id="modal-task-time" class="text-lg text-gray-600 mb-4"></p>
-                <div id="pomodoro-timer" class="text-center hidden">
-                    <div id="timer-display" class="text-7xl font-extrabold text-[#004e92] my-4">25:00</div>
-                    <div id="timer-status" class="text-lg font-semibold text-[#1a6f9a] mb-6">Ready to focus?</div>
+                <p id="modal-task-time" class="text-lg text-slate-500 mb-4"></p>
+                <div id="pomodoro-timer" class="text-center hidden my-4 p-4 bg-slate-100 rounded-lg">
+                    <div id="timer-display" class="text-7xl font-black text-slate-800 my-2">25:00</div>
+                    <div id="timer-status" class="text-lg font-semibold text-teal-600 mb-4">Ready to focus?</div>
                     <div class="flex justify-center gap-4">
-                        <button id="start-pause-btn" class="bg-[#0077b6] text-white px-6 py-2 rounded-lg font-semibold hover:bg-[#004e92] transition">Start</button>
-                        <button id="reset-btn" class="bg-gray-300 text-gray-800 px-6 py-2 rounded-lg font-semibold hover:bg-gray-400 transition">Reset</button>
+                        <button id="start-pause-btn" class="btn-primary text-white px-6 py-2 rounded-lg font-semibold">Start</button>
+                        <button id="reset-btn" class="bg-slate-300 text-slate-800 px-6 py-2 rounded-lg font-semibold hover:bg-slate-400 transition">Reset</button>
                     </div>
                 </div>
-                <div id="modal-view-buttons" class="mt-6 space-y-2">
-                    <button id="complete-task-btn" class="bg-green-500 text-white w-full py-3 rounded-lg font-bold hover:bg-green-600 transition">Mark as Complete</button>
-                    <div class="flex gap-2">
-                        <button id="edit-task-btn" class="bg-blue-500 text-white w-full py-2 rounded-lg font-bold hover:bg-blue-600 transition">Edit</button>
-                        <button id="delete-task-btn" class="bg-red-500 text-white w-full py-2 rounded-lg font-bold hover:bg-red-600 transition">Delete</button>
+                <div id="modal-view-buttons" class="mt-6 space-y-3">
+                    <button id="complete-task-btn" class="btn-primary text-white w-full py-3 rounded-lg font-bold shadow-md hover:shadow-lg transform hover:scale-105 transition-all">Mark as Complete</button>
+                    <div class="flex gap-3">
+                        <button id="edit-task-btn" class="bg-slate-500 text-white w-full py-2 rounded-lg font-bold hover:bg-slate-600 transition">Edit</button>
+                        <button id="delete-task-btn" class="btn-danger text-white w-full py-2 rounded-lg font-bold">Delete</button>
                     </div>
                 </div>
-                 <!-- Delete Confirmation View -->
                 <div id="modal-delete-confirm" class="hidden mt-4 p-4 bg-red-100 border border-red-300 rounded-lg text-center">
-                    <p class="font-semibold text-red-800 mb-3">Are you sure you want to delete this task?</p>
-                    <div class="flex gap-2">
-                        <button id="confirm-delete-btn" class="bg-red-600 text-white w-full py-2 rounded-lg font-bold hover:bg-red-700 transition">Yes, Delete</button>
-                        <button id="cancel-delete-btn" class="bg-gray-300 text-gray-800 w-full py-2 rounded-lg font-bold hover:bg-gray-400 transition">Cancel</button>
+                    <p class="font-semibold text-red-800 mb-3">Are you sure?</p>
+                    <div class="flex gap-3">
+                        <button id="confirm-delete-btn" class="btn-danger text-white w-full py-2 rounded-lg font-bold">Yes, Delete</button>
+                        <button id="cancel-delete-btn" class="bg-slate-300 text-slate-800 w-full py-2 rounded-lg font-bold hover:bg-slate-400 transition">Cancel</button>
                     </div>
                 </div>
             </div>
-
-            <!-- Form/Edit Mode Content -->
             <div id="modal-form-content" class="hidden">
                  <form id="modal-task-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="md:col-span-2">
-                        <label for="modal-task-title-input" class="block text-sm font-bold text-[#004e92] mb-1">Task Title</label>
-                        <input type="text" id="modal-task-title-input" class="w-full p-2 border border-gray-300 rounded-md" required>
-                    </div>
-                    <div>
-                        <label for="modal-task-day" class="block text-sm font-bold text-[#004e92] mb-1">Day of Week</label>
-                        <select id="modal-task-day" class="w-full p-2 border border-gray-300 rounded-md">
-                            <option value="1">Monday</option> <option value="2">Tuesday</option> <option value="3">Wednesday</option>
-                            <option value="4">Thursday</option> <option value="5">Friday</option> <option value="6">Saturday</option>
-                            <option value="0">Sunday</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="modal-task-category" class="block text-sm font-bold text-[#004e92] mb-1">Category</label>
-                        <select id="modal-task-category" class="w-full p-2 border border-gray-300 rounded-md">
-                            <option value="growth">Growth</option> <option value="work">Work</option> <option value="health">Health</option>
-                            <option value="personal">Personal</option> <option value="relax">Relax</option>
-                        </select>
-                    </div>
-                     <div>
-                        <label for="modal-task-start-time" class="block text-sm font-bold text-[#004e92] mb-1">Start Time</label>
-                        <input type="time" id="modal-task-start-time" class="w-full p-2 border border-gray-300 rounded-md" required>
-                    </div>
-                    <div>
-                        <label for="modal-task-end-time" class="block text-sm font-bold text-[#004e92] mb-1">End Time</label>
-                        <input type="time" id="modal-task-end-time" class="w-full p-2 border border-gray-300 rounded-md" required>
-                    </div>
-                    <div>
-                        <label for="modal-task-points" class="block text-sm font-bold text-[#004e92] mb-1">Reward ($)</label>
-                        <input type="number" id="modal-task-points" value="1" min="0" class="w-full p-2 border border-gray-300 rounded-md">
-                    </div>
-                    <div class="flex items-center h-full mt-4">
-                        <input type="checkbox" id="modal-task-pomodoro" class="h-5 w-5 rounded mr-2">
-                        <label for="modal-task-pomodoro" class="text-sm font-bold text-[#004e92]">Use Pomodoro?</label>
-                    </div>
-                    <div class="md:col-span-2 mt-4 flex gap-2">
-                        <button type="submit" class="w-full bg-[#0077b6] text-white font-bold py-3 px-4 rounded-lg hover:bg-[#004e92] transition-colors">Save Task</button>
-                        <button type="button" id="cancel-edit-btn" class="w-full bg-gray-300 text-gray-800 font-bold py-3 px-4 rounded-lg hover:bg-gray-400 transition-colors">Cancel</button>
-                    </div>
+                    <div class="md:col-span-2"><label for="modal-task-title-input" class="block text-sm font-bold text-slate-600 mb-1">Task Title</label><input type="text" id="modal-task-title-input" class="w-full p-2 bg-slate-100 border border-slate-300 rounded-md text-slate-800" required></div>
+                    <div><label for="modal-task-day" class="block text-sm font-bold text-slate-600 mb-1">Day</label><select id="modal-task-day" class="w-full p-2 bg-slate-100 border border-slate-300 rounded-md text-slate-800"><option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option><option value="0">Sunday</option></select></div>
+                    <div><label for="modal-task-category" class="block text-sm font-bold text-slate-600 mb-1">Category</label><select id="modal-task-category" class="w-full p-2 bg-slate-100 border border-slate-300 rounded-md text-slate-800"><option value="growth">Growth</option><option value="work">Work</option><option value="health">Health</option><option value="personal">Personal</option><option value="relax">Relax</option></select></div>
+                    <div><label for="modal-task-start-time" class="block text-sm font-bold text-slate-600 mb-1">Start Time</label><input type="time" id="modal-task-start-time" class="w-full p-2 bg-slate-100 border border-slate-300 rounded-md text-slate-800" required></div>
+                    <div><label for="modal-task-end-time" class="block text-sm font-bold text-slate-600 mb-1">End Time</label><input type="time" id="modal-task-end-time" class="w-full p-2 bg-slate-100 border border-slate-300 rounded-md text-slate-800" required></div>
+                    <div><label for="modal-task-points" class="block text-sm font-bold text-slate-600 mb-1">Reward ($)</label><input type="number" id="modal-task-points" value="1" min="0" class="w-full p-2 bg-slate-100 border border-slate-300 rounded-md text-slate-800"></div>
+                    <div class="flex items-center h-full mt-4"><input type="checkbox" id="modal-task-pomodoro" class="h-5 w-5 rounded mr-2 border-slate-400 text-teal-500 focus:ring-teal-500"><label for="modal-task-pomodoro" class="text-sm font-bold text-slate-600">Use Pomodoro?</label></div>
+                    <div class="md:col-span-2 mt-4 flex gap-3"><button type="submit" class="btn-primary w-full text-white font-bold py-3 px-4 rounded-lg">Save Task</button><button type="button" id="cancel-edit-btn" class="w-full bg-slate-300 text-slate-800 font-bold py-3 px-4 rounded-lg hover:bg-slate-400 transition">Cancel</button></div>
                 </form>
             </div>
         </div>
@@ -215,6 +205,90 @@
     
     <script>
     document.addEventListener('DOMContentLoaded', () => {
+        // --- 2D Background Setup ---
+        const canvas = document.getElementById('bg-canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let particlesArray;
+
+        const mouse = { x: null, y: null, radius: (canvas.height / 120) * (canvas.width / 120) };
+        window.addEventListener('mousemove', e => { mouse.x = e.x; mouse.y = e.y; });
+        window.addEventListener('mouseout', () => { mouse.x = null; mouse.y = null; });
+
+        class Particle {
+            constructor(x, y, directionX, directionY, size, color) {
+                this.x = x; this.y = y; this.directionX = directionX; this.directionY = directionY;
+                this.size = size; this.color = color;
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2, false);
+                ctx.fillStyle = 'rgba(14, 165, 233, 0.2)'; // sky-500 with opacity
+                ctx.fill();
+            }
+            update() {
+                if (this.x > canvas.width || this.x < 0) this.directionX = -this.directionX;
+                if (this.y > canvas.height || this.y < 0) this.directionY = -this.directionY;
+                this.x += this.directionX;
+                this.y += this.directionY;
+                this.draw();
+            }
+        }
+
+        function initParticles() {
+            particlesArray = [];
+            let numberOfParticles = (canvas.height * canvas.width) / 9000;
+            for (let i = 0; i < numberOfParticles; i++) {
+                let size = (Math.random() * 3) + 1;
+                let x = (Math.random() * ((innerWidth - size * 2) - (size * 2)) + size * 2);
+                let y = (Math.random() * ((innerHeight - size * 2) - (size * 2)) + size * 2);
+                let directionX = (Math.random() * 0.4) - 0.2;
+                let directionY = (Math.random() * 0.4) - 0.2;
+                let color = '#94a3b8';
+                particlesArray.push(new Particle(x, y, directionX, directionY, size, color));
+            }
+        }
+
+        function connect() {
+            let opacityValue = 1;
+            for (let a = 0; a < particlesArray.length; a++) {
+                for (let b = a; b < particlesArray.length; b++) {
+                    let distance = ((particlesArray[a].x - particlesArray[b].x) * (particlesArray[a].x - particlesArray[b].x)) + ((particlesArray[a].y - particlesArray[b].y) * (particlesArray[a].y - particlesArray[b].y));
+                    if (distance < (canvas.width / 7) * (canvas.height / 7)) {
+                        opacityValue = 1 - (distance / 20000);
+                        ctx.strokeStyle = `rgba(2, 132, 199, ${opacityValue * 0.3})`; // sky-600
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.moveTo(particlesArray[a].x, particlesArray[a].y);
+                        ctx.lineTo(particlesArray[b].x, particlesArray[b].y);
+                        ctx.stroke();
+                    }
+                }
+            }
+        }
+
+        function animate2D() {
+            requestAnimationFrame(animate2D);
+            ctx.clearRect(0, 0, innerWidth, innerHeight);
+            for (let i = 0; i < particlesArray.length; i++) {
+                particlesArray[i].update();
+            }
+            connect();
+        }
+        
+        initParticles();
+        animate2D();
+
+        window.addEventListener('resize', () => {
+            canvas.width = innerWidth;
+            canvas.height = innerHeight;
+            mouse.radius = (canvas.height / 120) * (canvas.width / 120);
+            initParticles();
+        });
+
+
         // --- Globals ---
         let schedule = {};
         let taskStates = {};
@@ -222,7 +296,6 @@
         let charts = {};
 
         // --- UI Elements ---
-        const mainDashboardUI = document.getElementById('main-dashboard');
         const addNewTaskBtn = document.getElementById('add-new-task-main');
         const modal = document.getElementById('task-modal');
         const modalTitle = document.getElementById('modal-title');
@@ -234,16 +307,16 @@
 
         // --- Constants ---
         const categoryColors = {
-            health: 'bg-blue-100 border-blue-300', personal: 'bg-gray-100 border-gray-300',
-            work: 'bg-red-100 border-red-300', growth: 'bg-green-100 border-green-300',
-            relax: 'bg-purple-100 border-purple-300'
+            health: 'bg-sky-100 border-sky-400', personal: 'bg-slate-100 border-slate-400',
+            work: 'bg-red-100 border-red-400', growth: 'bg-green-100 border-green-400',
+            relax: 'bg-purple-100 border-purple-400'
         };
         const chartCategoryColors = {
-            health: '#90e0ef', personal: '#e2e8f0', work: '#fc8181',
-            growth: '#9ae6b4', relax: '#d6bcfa'
+            health: '#38bdf8', personal: '#94a3b8', work: '#f87171',
+            growth: '#4ade80', relax: '#a78bfa'
         };
 
-        // --- Pomodoro Timer Object ---
+        // --- Pomodoro Timer ---
         const pomodoro = {
             timer: null, mode: 'work', timeLeft: 1500, isRunning: false, workDuration: 1500, breakDuration: 300,
             display: document.getElementById('timer-display'), statusDisplay: document.getElementById('timer-status'), startPauseBtn: document.getElementById('start-pause-btn'),
@@ -254,403 +327,146 @@
             updateDisplay() { const m = Math.floor(this.timeLeft / 60); const s = this.timeLeft % 60; this.display.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`; }
         };
         
-        // --- Data Persistence Functions ---
-        function saveSchedule() {
-            localStorage.setItem('userProductivityScheduleV2', JSON.stringify(schedule));
-        }
-
-        function loadSchedule() {
-            const savedSchedule = localStorage.getItem('userProductivityScheduleV2');
-            if (savedSchedule) {
-                schedule = JSON.parse(savedSchedule);
-            } else {
-                // Initialize empty schedule for all days
-                schedule = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] };
-            }
-        }
-
-        function saveTaskStates() {
-            localStorage.setItem('productivityTaskStatesV2', JSON.stringify(taskStates));
-        }
-
+        // --- Data Persistence ---
+        function saveSchedule() { localStorage.setItem('userProductivityScheduleV3', JSON.stringify(schedule)); }
+        function loadSchedule() { const s = localStorage.getItem('userProductivityScheduleV3'); schedule = s ? JSON.parse(s) : { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] }; }
+        function saveTaskStates() { localStorage.setItem('productivityTaskStatesV3', JSON.stringify(taskStates)); }
         function loadTaskStates() {
-            const savedStates = localStorage.getItem('productivityTaskStatesV2');
-            if (savedStates) {
-                taskStates = JSON.parse(savedStates);
-            } else {
-                taskStates = {};
-            }
-            // Ensure all tasks have a state entry
-            Object.values(schedule).flat().forEach(task => {
-                if (!taskStates[task.id]) {
-                    taskStates[task.id] = { completed: false };
-                }
-            });
+            const s = localStorage.getItem('productivityTaskStatesV3');
+            taskStates = s ? JSON.parse(s) : {};
+            Object.values(schedule).flat().forEach(task => { if (!taskStates[task.id]) taskStates[task.id] = { completed: false }; });
         }
 
-        // --- Core Application Logic ---
-        function init() {
-            loadSchedule();
-            loadTaskStates();
-            renderTimetable();
-            updateAll();
-            setupDashboardEventListeners();
-        }
+        // --- Core App Logic ---
+        function init() { loadSchedule(); loadTaskStates(); renderTimetable(); updateAll(); setupDashboardEventListeners(); }
 
         // --- CRUD Functions ---
         function handleSaveTask(e) {
             e.preventDefault();
             const taskId = modal.dataset.currentTaskId;
-            
-            const title = document.getElementById('modal-task-title-input').value;
-            const day = document.getElementById('modal-task-day').value;
-            const category = document.getElementById('modal-task-category').value;
-            const startTime = document.getElementById('modal-task-start-time').value;
-            const endTime = document.getElementById('modal-task-end-time').value;
-            const points = parseInt(document.getElementById('modal-task-points').value, 10);
-            const pomodoro = document.getElementById('modal-task-pomodoro').checked;
-
-            if (!title || !startTime || !endTime) {
-                console.error('Please fill in Title, Start Time, and End Time.');
-                return;
-            }
-
-            const start = new Date(`1970-01-01T${startTime}:00`);
-            const end = new Date(`1970-01-01T${endTime}:00`);
-            if (end <= start) {
-                console.error('End time must be after start time.');
-                return;
-            }
+            const title = document.getElementById('modal-task-title-input').value, day = document.getElementById('modal-task-day').value, category = document.getElementById('modal-task-category').value, startTime = document.getElementById('modal-task-start-time').value, endTime = document.getElementById('modal-task-end-time').value, points = parseInt(document.getElementById('modal-task-points').value, 10), pomodoro = document.getElementById('modal-task-pomodoro').checked;
+            if (!title || !startTime || !endTime) return;
+            const start = new Date(`1970-01-01T${startTime}:00`), end = new Date(`1970-01-01T${endTime}:00`);
+            if (end <= start) return;
             const duration = (end - start) / (1000 * 60 * 60);
-
-            const taskData = {
-                title, category, points, pomodoro,
-                time: `${startTime} - ${endTime}`,
-                duration: parseFloat(duration.toFixed(2))
-            };
-
-            if (taskId) { // Editing existing task
-                const oldTaskDay = findTaskDay(taskId);
-                const taskIndex = schedule[oldTaskDay].findIndex(t => t.id == taskId);
-                
-                const originalTask = schedule[oldTaskDay][taskIndex];
-                const updatedTask = { ...originalTask, ...taskData };
-
-                if (oldTaskDay != day) { // Day has changed
-                    schedule[oldTaskDay].splice(taskIndex, 1);
-                    if (!schedule[day]) schedule[day] = [];
-                    schedule[day].push(updatedTask);
-                } else {
-                    schedule[oldTaskDay][taskIndex] = updatedTask;
-                }
-            } else { // Adding new task
-                taskData.id = Date.now();
-                if (!schedule[day]) schedule[day] = [];
-                schedule[day].push(taskData);
-                taskStates[taskData.id] = { completed: false };
-            }
-
-            saveSchedule();
-            saveTaskStates();
-            renderTimetable();
-            updateAll();
-            closeModal();
+            const taskData = { title, category, points, pomodoro, time: `${startTime} - ${endTime}`, duration: parseFloat(duration.toFixed(2)) };
+            if (taskId) {
+                const oldTaskDay = findTaskDay(taskId), taskIndex = schedule[oldTaskDay].findIndex(t => t.id == taskId), originalTask = schedule[oldTaskDay][taskIndex], updatedTask = { ...originalTask, ...taskData };
+                if (oldTaskDay != day) { schedule[oldTaskDay].splice(taskIndex, 1); if (!schedule[day]) schedule[day] = []; schedule[day].push(updatedTask); } else { schedule[oldTaskDay][taskIndex] = updatedTask; }
+            } else { taskData.id = Date.now(); if (!schedule[day]) schedule[day] = []; schedule[day].push(taskData); taskStates[taskData.id] = { completed: false }; }
+            saveSchedule(); saveTaskStates(); renderTimetable(); updateAll(); closeModal();
         }
-
-        function promptForDelete() {
-            modalViewButtons.classList.add('hidden');
-            modalDeleteConfirm.classList.remove('hidden');
-        }
-
-        function cancelDeletePrompt() {
-            modalViewButtons.classList.remove('hidden');
-            modalDeleteConfirm.classList.add('hidden');
-        }
-
+        function promptForDelete() { modalViewButtons.classList.add('hidden'); modalDeleteConfirm.classList.remove('hidden'); }
+        function cancelDeletePrompt() { modalViewButtons.classList.remove('hidden'); modalDeleteConfirm.classList.add('hidden'); }
         function executeDelete() {
-            const taskId = modal.dataset.currentTaskId;
-            const day = findTaskDay(taskId);
-            if (day !== -1) {
-                schedule[day] = schedule[day].filter(t => t.id != taskId);
-                delete taskStates[taskId];
-                
-                saveSchedule();
-                saveTaskStates();
-                renderTimetable();
-                updateAll();
-                closeModal();
-            }
+            const taskId = modal.dataset.currentTaskId, day = findTaskDay(taskId);
+            if (day !== -1) { schedule[day] = schedule[day].filter(t => t.id != taskId); delete taskStates[taskId]; saveSchedule(); saveTaskStates(); renderTimetable(); updateAll(); closeModal(); }
         }
+        function findTaskDay(taskId) { for (const day in schedule) { if (schedule[day].some(t => t.id == taskId)) return day; } return -1; }
 
-        function findTaskDay(taskId) {
-            for (const day in schedule) {
-                if (schedule[day].some(t => t.id == taskId)) {
-                    return day;
-                }
-            }
-            return -1;
-        }
-
-        // --- Dashboard Rendering Functions ---
+        // --- Rendering ---
         function renderTimetable() {
-            const grid = document.getElementById('timetable-grid');
-            grid.innerHTML = '';
+            const grid = document.getElementById('timetable-grid'); grid.innerHTML = '';
             const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
             daysOfWeek.forEach((day, index) => {
-                const dayColumn = document.createElement('div');
-                dayColumn.className = `day-column p-3 rounded-lg space-y-3 ${index === today ? 'today' : 'bg-gray-100'}`;
-                const dayTitle = document.createElement('h3');
-                dayTitle.className = 'text-center font-bold text-lg text-[#004e92]';
-                dayTitle.textContent = day;
-                dayColumn.appendChild(dayTitle);
-                
+                const dayColumn = document.createElement('div'); dayColumn.className = `day-column p-3 rounded-lg space-y-3 ${index === today ? 'today' : 'bg-slate-100'}`;
+                dayColumn.innerHTML = `<h3 class="text-center font-bold text-lg text-slate-600">${day}</h3>`;
                 const tasks = schedule[index] || [];
-                if (tasks.length === 0) {
-                    dayColumn.innerHTML += `<div class="text-center text-xs text-gray-400 pt-4">No tasks scheduled.</div>`;
-                } else {
+                if (tasks.length === 0) { dayColumn.innerHTML += `<div class="text-center text-xs text-slate-400 pt-4">No tasks.</div>`; } else {
                     tasks.sort((a,b) => a.time.localeCompare(b.time)).forEach(task => {
                         const taskCard = document.createElement('div');
-                        taskCard.className = `task-card p-3 rounded-lg border-l-4 ${categoryColors[task.category]} ${taskStates[task.id]?.completed ? 'completed' : ''}`;
+                        taskCard.className = `task-card p-3 rounded-lg ${categoryColors[task.category]} ${taskStates[task.id]?.completed ? 'completed' : ''}`;
                         taskCard.dataset.taskId = task.id;
-                        taskCard.innerHTML = `<p class="font-bold task-title">${task.title}</p><p class="text-sm text-gray-600">${task.time}</p><p class="text-xs font-bold text-gray-700 mt-1">Reward: $${task.points}</p>`;
+                        taskCard.innerHTML = `<p class="font-bold text-slate-800 task-title">${task.title}</p><p class="text-sm text-slate-500">${task.time}</p><p class="text-xs font-bold text-slate-600 mt-1">Reward: $${task.points}</p>`;
                         dayColumn.appendChild(taskCard);
                     });
                 }
                 grid.appendChild(dayColumn);
             });
         }
-        
         function updateAll() {
             updateDashboard();
             if (!document.getElementById('analytics').classList.contains('hidden')) updateAnalytics();
             if (!document.getElementById('plan').classList.contains('hidden')) updatePlanVisuals();
         }
-
         function updateDashboard() {
-            const todayTasks = schedule[today] || [];
-            const plannedHours = todayTasks.reduce((sum, task) => sum + task.duration, 0);
-            const actualHours = todayTasks.reduce((sum, task) => (taskStates[task.id]?.completed ? sum + task.duration : sum), 0);
-            const completionRate = plannedHours > 0 ? (actualHours / plannedHours) * 100 : 0;
+            const todayTasks = schedule[today] || [], plannedHours = todayTasks.reduce((sum, task) => sum + task.duration, 0), actualHours = todayTasks.reduce((sum, task) => (taskStates[task.id]?.completed ? sum + task.duration : sum), 0), completionRate = plannedHours > 0 ? (actualHours / plannedHours) * 100 : 0;
             document.getElementById('planned-hours').textContent = plannedHours.toFixed(1);
             document.getElementById('actual-hours').textContent = actualHours.toFixed(1);
             document.getElementById('completion-rate').textContent = `${Math.round(completionRate)}%`;
         }
-        
         function createOrUpdateChart(chartId, type, labels, datasets, options = {}) {
-            const ctx = document.getElementById(chartId)?.getContext('2d');
-            if(!ctx) return;
+            const ctx = document.getElementById(chartId)?.getContext('2d'); if(!ctx) return;
             if (charts[chartId]) charts[chartId].destroy();
-            charts[chartId] = new Chart(ctx, { type, data: { labels, datasets }, options });
+            const defaultOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#475569' } } }, scales: { x: { ticks: { color: '#64748b' }, grid: { color: '#e2e8f0' } }, y: { ticks: { color: '#64748b' }, grid: { color: '#e2e8f0' }, beginAtZero: true } } };
+            charts[chartId] = new Chart(ctx, { type, data: { labels, datasets }, options: {...defaultOptions, ...options} });
         }
-
         function updateAnalytics() {
-            const pointsPerDay = [0, 0, 0, 0, 0, 0, 0];
-            const categoryCompletion = { health: {t:0, c:0}, personal: {t:0, c:0}, work: {t:0, c:0}, growth: {t:0, c:0}, relax: {t:0, c:0} };
-            const weeklyHours = { planned: 0, actual: 0 };
-            const allTasks = Object.values(schedule).flat();
-
-            allTasks.forEach(task => {
-                const dayOfTask = findTaskDay(task.id);
-                categoryCompletion[task.category].t++;
-                weeklyHours.planned += task.duration;
-                if(taskStates[task.id]?.completed) {
-                    pointsPerDay[dayOfTask] += task.points;
-                    categoryCompletion[task.category].c++;
-                    weeklyHours.actual += task.duration;
-                }
-            });
-            const totalPoints = pointsPerDay.reduce((a, b) => a + b, 0);
-            const totalPossiblePoints = allTasks.reduce((sum, task) => sum + task.points, 0);
-            const progressPercent = totalPossiblePoints > 0 ? (totalPoints / totalPossiblePoints) * 100 : 0;
-            
-            document.getElementById('weekly-points-earned').textContent = `$${totalPoints} / $${totalPossiblePoints}`;
-            document.getElementById('weekly-progress-bar').style.width = `${Math.min(progressPercent, 100)}%`;
-
-            createOrUpdateChart('analytics-points-chart', 'bar', ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], 
-                [{ label: 'Earned ($)', data: pointsPerDay, backgroundColor: '#00b4d8', borderRadius: 5 }], 
-                { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
-            );
-
-            const catLabels = Object.keys(categoryCompletion);
-            const catData = catLabels.map(cat => categoryCompletion[cat].t > 0 ? (categoryCompletion[cat].c / categoryCompletion[cat].t) * 100 : 0);
-            createOrUpdateChart('analytics-category-chart', 'doughnut', catLabels, 
-                [{ label: 'Completion %', data: catData, backgroundColor: catLabels.map(cat => chartCategoryColors[cat]) }],
-                { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } } }
-            );
-            
-            createOrUpdateChart('analytics-hours-chart', 'bar', ['Weekly Hours'],
-                [
-                    { label: 'Planned', data: [weeklyHours.planned], backgroundColor: '#90e0ef', borderRadius: 5 },
-                    { label: 'Actual', data: [weeklyHours.actual], backgroundColor: '#0077b6', borderRadius: 5 }
-                ],
-                { responsive: true, maintainAspectRatio: false }
-            );
+            const pointsPerDay = [0, 0, 0, 0, 0, 0, 0], categoryCompletion = { health: {t:0, c:0}, personal: {t:0, c:0}, work: {t:0, c:0}, growth: {t:0, c:0}, relax: {t:0, c:0} }, weeklyHours = { planned: 0, actual: 0 }, allTasks = Object.values(schedule).flat();
+            allTasks.forEach(task => { const dayOfTask = findTaskDay(task.id); categoryCompletion[task.category].t++; weeklyHours.planned += task.duration; if(taskStates[task.id]?.completed) { pointsPerDay[dayOfTask] += task.points; categoryCompletion[task.category].c++; weeklyHours.actual += task.duration; } });
+            const totalPoints = pointsPerDay.reduce((a, b) => a + b, 0), totalPossiblePoints = allTasks.reduce((sum, task) => sum + task.points, 0), progressPercent = totalPossiblePoints > 0 ? (totalPoints / totalPossiblePoints) * 100 : 0;
+            document.getElementById('weekly-points-earned').textContent = `$${totalPoints} / $${totalPossiblePoints}`; document.getElementById('weekly-progress-bar').style.width = `${Math.min(progressPercent, 100)}%`;
+            createOrUpdateChart('analytics-points-chart', 'bar', ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], [{ label: 'Earned ($)', data: pointsPerDay, backgroundColor: '#2dd4bf', borderRadius: 5 }], { plugins: { legend: { display: false } } });
+            const catLabels = Object.keys(categoryCompletion), catData = catLabels.map(cat => categoryCompletion[cat].t > 0 ? (categoryCompletion[cat].c / categoryCompletion[cat].t) * 100 : 0);
+            createOrUpdateChart('analytics-category-chart', 'doughnut', catLabels, [{ label: 'Completion %', data: catData, backgroundColor: catLabels.map(cat => chartCategoryColors[cat]), borderColor: '#ffffff' }], { plugins: { legend: { position: 'top' } } });
+            createOrUpdateChart('analytics-hours-chart', 'bar', ['Weekly Hours'], [{ label: 'Planned', data: [weeklyHours.planned], backgroundColor: '#a5b4fc', borderRadius: 5 }, { label: 'Actual', data: [weeklyHours.actual], backgroundColor: '#5eead4', borderRadius: 5 }]);
         }
-
         function updatePlanVisuals() {
-            const allTasks = Object.values(schedule).flat();
-            const totalWeeklyHours = allTasks.reduce((sum, task) => sum + task.duration, 0);
-            const completedWeeklyHours = allTasks.reduce((sum, task) => (taskStates[task.id]?.completed ? sum + task.duration : sum), 0);
-            const weeklyProgressPercent = totalWeeklyHours > 0 ? (completedWeeklyHours / totalWeeklyHours) * 100 : 0;
-            
-            const progressBar = document.getElementById('plan-weekly-progress');
-            progressBar.style.width = `${weeklyProgressPercent}%`;
-            progressBar.textContent = `${Math.round(weeklyProgressPercent)}% Complete`;
-
-            const categoryHours = { health: 0, personal: 0, work: 0, growth: 0, relax: 0 };
-            allTasks.forEach(task => categoryHours[task.category] += task.duration);
-            createOrUpdateChart('plan-weekday-allocation-chart', 'pie', Object.keys(categoryHours),
-                [{ data: Object.values(categoryHours), backgroundColor: Object.keys(categoryHours).map(cat => chartCategoryColors[cat])}],
-                { responsive: true, maintainAspectRatio: false }
-            );
-            
-            const categoryPoints = { health: 0, personal: 0, work: 0, growth: 0, relax: 0 };
-            allTasks.forEach(task => categoryPoints[task.category] += task.points);
-            createOrUpdateChart('plan-growth-focus-chart', 'bar', Object.keys(categoryPoints),
-                [{ label: 'Potential Earnings ($)/Week', data: Object.values(categoryPoints), backgroundColor: '#0077b6' }],
-                { responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { display: false } } }
-            );
+            const allTasks = Object.values(schedule).flat(), totalWeeklyHours = allTasks.reduce((sum, task) => sum + task.duration, 0), completedWeeklyHours = allTasks.reduce((sum, task) => (taskStates[task.id]?.completed ? sum + task.duration : sum), 0), weeklyProgressPercent = totalWeeklyHours > 0 ? (completedWeeklyHours / totalWeeklyHours) * 100 : 0;
+            const progressBar = document.getElementById('plan-weekly-progress'); progressBar.style.width = `${weeklyProgressPercent}%`; progressBar.textContent = `${Math.round(weeklyProgressPercent)}% Complete`;
+            const categoryHours = { health: 0, personal: 0, work: 0, growth: 0, relax: 0 }; allTasks.forEach(task => categoryHours[task.category] += task.duration);
+            createOrUpdateChart('plan-weekday-allocation-chart', 'pie', Object.keys(categoryHours), [{ data: Object.values(categoryHours), backgroundColor: Object.keys(categoryHours).map(cat => chartCategoryColors[cat]), borderColor: '#ffffff'}]);
+            const categoryPoints = { health: 0, personal: 0, work: 0, growth: 0, relax: 0 }; allTasks.forEach(task => categoryPoints[task.category] += task.points);
+            createOrUpdateChart('plan-growth-focus-chart', 'bar', Object.keys(categoryPoints), [{ label: 'Potential Earnings ($)/Week', data: Object.values(categoryPoints), backgroundColor: '#5eead4' }], { indexAxis: 'y', plugins: { legend: { display: false } } });
         }
 
-        // --- Modal & Event Listener Setup ---
+        // --- Modal & Event Listeners ---
         function openModal(taskId) {
-            modal.dataset.currentTaskId = taskId || '';
-            
-            // Reset modal state
-            cancelDeletePrompt();
-            
-            if (taskId) { // View/Edit existing task
-                const day = findTaskDay(taskId);
-                const task = schedule[day].find(t => t.id == taskId);
-                if (!task) return;
-
-                modalTitle.textContent = task.title;
-                document.getElementById('modal-task-time').textContent = task.time;
-                
-                const pomodoroEl = document.getElementById('pomodoro-timer');
-                pomodoroEl.classList.toggle('hidden', !task.pomodoro);
-                if(task.pomodoro) pomodoro.reset();
-
+            modal.dataset.currentTaskId = taskId || ''; cancelDeletePrompt();
+            if (taskId) {
+                const day = findTaskDay(taskId), task = schedule[day].find(t => t.id == taskId); if (!task) return;
+                modalTitle.textContent = task.title; document.getElementById('modal-task-time').textContent = task.time;
+                document.getElementById('pomodoro-timer').classList.toggle('hidden', !task.pomodoro); if(task.pomodoro) pomodoro.reset();
                 const completeBtn = document.getElementById('complete-task-btn');
-                if(taskStates[task.id]?.completed){
-                    completeBtn.textContent = `Mark as Incomplete (-$${task.points})`;
-                    completeBtn.className = "bg-yellow-500 text-white w-full py-3 rounded-lg font-bold hover:bg-yellow-600 transition";
-                } else {
-                    completeBtn.textContent = `Mark as Complete (+$${task.points})`;
-                    completeBtn.className = "bg-green-500 text-white w-full py-3 rounded-lg font-bold hover:bg-green-600 transition";
-                }
-
+                if(taskStates[task.id]?.completed){ completeBtn.textContent = `Mark as Incomplete (-$${task.points})`; completeBtn.className = "bg-amber-500 text-white w-full py-3 rounded-lg font-bold hover:bg-amber-600 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105"; } else { completeBtn.textContent = `Mark as Complete (+$${task.points})`; completeBtn.className = "btn-primary text-white w-full py-3 rounded-lg font-bold shadow-md hover:shadow-lg transform hover:scale-105 transition-all"; }
                 showModalContent('view');
-
-            } else { // Add new task
-                modalTitle.textContent = "Add New Task";
-                modalTaskForm.reset();
-                document.getElementById('modal-task-day').value = today; // Default to today
-                showModalContent('form');
-            }
-            
-            modal.classList.remove('hidden');
-            setTimeout(() => { modal.querySelector('.modal-content').classList.remove('scale-95'); }, 10);
+            } else { modalTitle.textContent = "Add New Task"; modalTaskForm.reset(); document.getElementById('modal-task-day').value = today; showModalContent('form'); }
+            modal.classList.remove('hidden'); setTimeout(() => { modal.querySelector('.modal-content').classList.remove('scale-95'); }, 10);
         }
-
-        function showModalContent(mode) { // 'view', 'form'
-             if (mode === 'form') {
-                modalViewContent.classList.add('hidden');
-                modalFormContent.classList.remove('hidden');
-             } else { // view
-                modalViewContent.classList.remove('hidden');
-                modalFormContent.classList.add('hidden');
-             }
-        }
-
+        function showModalContent(mode) { if (mode === 'form') { modalViewContent.classList.add('hidden'); modalFormContent.classList.remove('hidden'); } else { modalViewContent.classList.remove('hidden'); modalFormContent.classList.add('hidden'); } }
         function populateFormForEdit() {
-            const taskId = modal.dataset.currentTaskId;
-            if (!taskId) return;
-            
-            const day = findTaskDay(taskId);
-            const task = schedule[day].find(t => t.id == taskId);
-
-            document.getElementById('modal-task-title-input').value = task.title;
-            document.getElementById('modal-task-day').value = day;
-            document.getElementById('modal-task-category').value = task.category;
-            const [startTime, endTime] = task.time.split(' - ');
-            document.getElementById('modal-task-start-time').value = startTime;
-            document.getElementById('modal-task-end-time').value = endTime;
-            document.getElementById('modal-task-points').value = task.points;
-            document.getElementById('modal-task-pomodoro').checked = task.pomodoro;
-            
-            modalTitle.textContent = "Edit Task";
-            showModalContent('form');
+            const taskId = modal.dataset.currentTaskId; if (!taskId) return;
+            const day = findTaskDay(taskId), task = schedule[day].find(t => t.id == taskId);
+            document.getElementById('modal-task-title-input').value = task.title; document.getElementById('modal-task-day').value = day; document.getElementById('modal-task-category').value = task.category; const [startTime, endTime] = task.time.split(' - '); document.getElementById('modal-task-start-time').value = startTime; document.getElementById('modal-task-end-time').value = endTime; document.getElementById('modal-task-points').value = task.points; document.getElementById('modal-task-pomodoro').checked = task.pomodoro;
+            modalTitle.textContent = "Edit Task"; showModalContent('form');
         }
-
         function closeModal() {
-            pomodoro.stop();
-            modal.querySelector('.modal-content').classList.add('scale-95');
-            setTimeout(() => {
-                modal.classList.add('hidden');
-                // Reset modal to default view for next time
-                cancelDeletePrompt();
-            }, 300);
+            pomodoro.stop(); modal.querySelector('.modal-content').classList.add('scale-95');
+            setTimeout(() => { modal.classList.add('hidden'); cancelDeletePrompt(); }, 300);
         }
-        
         function setupDashboardEventListeners() {
             addNewTaskBtn.addEventListener('click', () => openModal(null));
-
-            document.getElementById('timetable-grid').addEventListener('click', e => {
-                const card = e.target.closest('.task-card');
-                if (card) openModal(card.dataset.taskId);
-            });
-
-            // Modal Buttons
+            document.getElementById('timetable-grid').addEventListener('click', e => { const card = e.target.closest('.task-card'); if (card) openModal(card.dataset.taskId); });
             document.getElementById('close-modal-btn').addEventListener('click', closeModal);
             modal.addEventListener('click', e => { if(e.target.id === 'task-modal') closeModal(); });
-            
             pomodoro.startPauseBtn.addEventListener('click', () => { pomodoro.isRunning ? pomodoro.pause() : pomodoro.start(); });
             document.getElementById('reset-btn').addEventListener('click', () => pomodoro.reset());
-
-            document.getElementById('complete-task-btn').addEventListener('click', () => {
-                const taskId = modal.dataset.currentTaskId;
-                if(!taskStates[taskId]) taskStates[taskId] = { completed: false };
-                taskStates[taskId].completed = !taskStates[taskId].completed;
-                saveTaskStates();
-                renderTimetable();
-                updateAll();
-                closeModal();
-            });
-
-            // Edit and Delete flow
+            document.getElementById('complete-task-btn').addEventListener('click', () => { const taskId = modal.dataset.currentTaskId; if(!taskStates[taskId]) taskStates[taskId] = { completed: false }; taskStates[taskId].completed = !taskStates[taskId].completed; saveTaskStates(); renderTimetable(); updateAll(); closeModal(); });
             document.getElementById('edit-task-btn').addEventListener('click', populateFormForEdit);
             document.getElementById('delete-task-btn').addEventListener('click', promptForDelete);
             document.getElementById('confirm-delete-btn').addEventListener('click', executeDelete);
             document.getElementById('cancel-delete-btn').addEventListener('click', cancelDeletePrompt);
-
-            document.getElementById('cancel-edit-btn').addEventListener('click', () => {
-                // If we were editing, go back to view mode. If adding, just close.
-                if (modal.dataset.currentTaskId) {
-                    showModalContent('view');
-                } else {
-                    closeModal();
-                }
-            });
-
+            document.getElementById('cancel-edit-btn').addEventListener('click', () => { if (modal.dataset.currentTaskId) { showModalContent('view'); } else { closeModal(); } });
             modalTaskForm.addEventListener('submit', handleSaveTask);
-
-            // Tab navigation
             document.querySelectorAll('.tab-btn').forEach(button => {
                 button.addEventListener('click', () => {
-                    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-                    button.classList.add('active');
+                    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active')); button.classList.add('active');
                     document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
-                    const activeTab = document.getElementById(button.dataset.tab);
-                    activeTab.classList.remove('hidden');
-                    
-                    if (button.dataset.tab === 'analytics') updateAnalytics();
-                    if (button.dataset.tab === 'plan') updatePlanVisuals();
+                    const activeTab = document.getElementById(button.dataset.tab); activeTab.classList.remove('hidden');
+                    if (button.dataset.tab === 'analytics') updateAnalytics(); if (button.dataset.tab === 'plan') updatePlanVisuals();
                 });
             });
         }
-
-        // --- Start the App ---
         init();
     });
     </script>
