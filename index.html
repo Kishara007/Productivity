@@ -97,6 +97,26 @@
         .btn-danger:hover {
             background-color: #dc2626; /* red-600 */
         }
+        .suggestion-btn, .duration-btn {
+            background-color: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            color: #475569;
+            transition: all 0.2s ease-in-out;
+        }
+        .suggestion-btn.selected, .duration-btn.selected {
+            background-color: #14b8a6;
+            color: white;
+            border-color: #14b8a6;
+            transform: scale(1.05);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .duration-btn:disabled {
+            background-color: #f8fafc;
+            color: #cbd5e1;
+            cursor: not-allowed;
+            transform: scale(1);
+            box-shadow: none;
+        }
     </style>
 </head>
 <body>
@@ -190,11 +210,32 @@
             </div>
             <div id="modal-form-content" class="hidden">
                  <form id="modal-task-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="md:col-span-2"><label for="modal-task-title-input" class="block text-sm font-bold text-slate-600 mb-1">Task Title</label><input type="text" id="modal-task-title-input" class="w-full p-2 bg-slate-100 border border-slate-300 rounded-md text-slate-800" required></div>
+                    <div class="md:col-span-2">
+                        <label for="modal-task-title-input" class="block text-sm font-bold text-slate-600 mb-1">Task Title</label>
+                        <input type="text" id="modal-task-title-input" class="w-full p-2 bg-slate-100 border border-slate-300 rounded-md text-slate-800" required>
+                        <div id="task-suggestion-buttons" class="flex flex-wrap gap-2 mt-2">
+                            <!-- Task suggestion buttons injected by JS -->
+                        </div>
+                    </div>
                     <div><label for="modal-task-day" class="block text-sm font-bold text-slate-600 mb-1">Day</label><select id="modal-task-day" class="w-full p-2 bg-slate-100 border border-slate-300 rounded-md text-slate-800"><option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option><option value="0">Sunday</option></select></div>
                     <div><label for="modal-task-category" class="block text-sm font-bold text-slate-600 mb-1">Category</label><select id="modal-task-category" class="w-full p-2 bg-slate-100 border border-slate-300 rounded-md text-slate-800"><option value="growth">Growth</option><option value="work">Work</option><option value="health">Health</option><option value="personal">Personal</option><option value="relax">Relax</option></select></div>
-                    <div><label for="modal-task-start-time" class="block text-sm font-bold text-slate-600 mb-1">Start Time</label><input type="time" id="modal-task-start-time" class="w-full p-2 bg-slate-100 border border-slate-300 rounded-md text-slate-800" required></div>
-                    <div><label for="modal-task-end-time" class="block text-sm font-bold text-slate-600 mb-1">End Time</label><input type="time" id="modal-task-end-time" class="w-full p-2 bg-slate-100 border border-slate-300 rounded-md text-slate-800" required></div>
+                    
+                    <div class="md:col-span-2 space-y-4">
+                        <div>
+                            <label class="block text-sm font-bold text-slate-600 mb-2">1. Select Task Duration</label>
+                            <div id="duration-buttons" class="flex flex-wrap gap-2"></div>
+                        </div>
+                        <div id="time-slot-container" class="hidden">
+                            <label for="time-slot-dropdown" class="block text-sm font-bold text-slate-600 mb-2">2. Select Available Slot</label>
+                            <select id="time-slot-dropdown" class="w-full p-2 bg-slate-100 border border-slate-300 rounded-md text-slate-800"></select>
+                        </div>
+                        <button type="button" id="custom-time-toggle-btn" class="text-sm text-teal-600 hover:text-teal-700 font-semibold underline">Or Set Custom Time</button>
+                        <div id="custom-time-inputs" class="hidden grid grid-cols-2 gap-4 mt-2">
+                            <div><label for="modal-task-start-time" class="block text-sm font-bold text-slate-600 mb-1">Start Time</label><input type="time" id="modal-task-start-time" class="w-full p-2 bg-slate-100 border border-slate-300 rounded-md text-slate-800"></div>
+                            <div><label for="modal-task-end-time" class="block text-sm font-bold text-slate-600 mb-1">End Time</label><input type="time" id="modal-task-end-time" class="w-full p-2 bg-slate-100 border border-slate-300 rounded-md text-slate-800"></div>
+                        </div>
+                    </div>
+
                     <div><label for="modal-task-points" class="block text-sm font-bold text-slate-600 mb-1">Reward ($)</label><input type="number" id="modal-task-points" value="1" min="0" class="w-full p-2 bg-slate-100 border border-slate-300 rounded-md text-slate-800"></div>
                     <div class="flex items-center h-full mt-4"><input type="checkbox" id="modal-task-pomodoro" class="h-5 w-5 rounded mr-2 border-slate-400 text-teal-500 focus:ring-teal-500"><label for="modal-task-pomodoro" class="text-sm font-bold text-slate-600">Use Pomodoro?</label></div>
                     <div class="md:col-span-2 mt-4 flex gap-3"><button type="submit" class="btn-primary w-full text-white font-bold py-3 px-4 rounded-lg">Save Task</button><button type="button" id="cancel-edit-btn" class="w-full bg-slate-300 text-slate-800 font-bold py-3 px-4 rounded-lg hover:bg-slate-400 transition">Cancel</button></div>
@@ -210,33 +251,15 @@
         const ctx = canvas.getContext('2d');
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
-
         let particlesArray;
-
         const mouse = { x: null, y: null, radius: (canvas.height / 120) * (canvas.width / 120) };
         window.addEventListener('mousemove', e => { mouse.x = e.x; mouse.y = e.y; });
         window.addEventListener('mouseout', () => { mouse.x = null; mouse.y = null; });
-
         class Particle {
-            constructor(x, y, directionX, directionY, size, color) {
-                this.x = x; this.y = y; this.directionX = directionX; this.directionY = directionY;
-                this.size = size; this.color = color;
-            }
-            draw() {
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2, false);
-                ctx.fillStyle = 'rgba(14, 165, 233, 0.2)'; // sky-500 with opacity
-                ctx.fill();
-            }
-            update() {
-                if (this.x > canvas.width || this.x < 0) this.directionX = -this.directionX;
-                if (this.y > canvas.height || this.y < 0) this.directionY = -this.directionY;
-                this.x += this.directionX;
-                this.y += this.directionY;
-                this.draw();
-            }
+            constructor(x, y, directionX, directionY, size, color) { this.x = x; this.y = y; this.directionX = directionX; this.directionY = directionY; this.size = size; this.color = color; }
+            draw() { ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2, false); ctx.fillStyle = 'rgba(14, 165, 233, 0.2)'; ctx.fill(); }
+            update() { if (this.x > canvas.width || this.x < 0) this.directionX = -this.directionX; if (this.y > canvas.height || this.y < 0) this.directionY = -this.directionY; this.x += this.directionX; this.y += this.directionY; this.draw(); }
         }
-
         function initParticles() {
             particlesArray = [];
             let numberOfParticles = (canvas.height * canvas.width) / 9000;
@@ -246,75 +269,37 @@
                 let y = (Math.random() * ((innerHeight - size * 2) - (size * 2)) + size * 2);
                 let directionX = (Math.random() * 0.4) - 0.2;
                 let directionY = (Math.random() * 0.4) - 0.2;
-                let color = '#94a3b8';
-                particlesArray.push(new Particle(x, y, directionX, directionY, size, color));
+                particlesArray.push(new Particle(x, y, directionX, directionY, size, '#94a3b8'));
             }
         }
-
         function connect() {
             let opacityValue = 1;
             for (let a = 0; a < particlesArray.length; a++) {
                 for (let b = a; b < particlesArray.length; b++) {
-                    let distance = ((particlesArray[a].x - particlesArray[b].x) * (particlesArray[a].x - particlesArray[b].x)) + ((particlesArray[a].y - particlesArray[b].y) * (particlesArray[a].y - particlesArray[b].y));
+                    let distance = ((particlesArray[a].x - particlesArray[b].x) ** 2) + ((particlesArray[a].y - particlesArray[b].y) ** 2);
                     if (distance < (canvas.width / 7) * (canvas.height / 7)) {
                         opacityValue = 1 - (distance / 20000);
-                        ctx.strokeStyle = `rgba(2, 132, 199, ${opacityValue * 0.3})`; // sky-600
+                        ctx.strokeStyle = `rgba(2, 132, 199, ${opacityValue * 0.3})`;
                         ctx.lineWidth = 1;
-                        ctx.beginPath();
-                        ctx.moveTo(particlesArray[a].x, particlesArray[a].y);
-                        ctx.lineTo(particlesArray[b].x, particlesArray[b].y);
-                        ctx.stroke();
+                        ctx.beginPath(); ctx.moveTo(particlesArray[a].x, particlesArray[a].y); ctx.lineTo(particlesArray[b].x, particlesArray[b].y); ctx.stroke();
                     }
                 }
             }
         }
+        function animate2D() { requestAnimationFrame(animate2D); ctx.clearRect(0, 0, innerWidth, innerHeight); for (let i = 0; i < particlesArray.length; i++) { particlesArray[i].update(); } connect(); }
+        initParticles(); animate2D();
+        window.addEventListener('resize', () => { canvas.width = innerWidth; canvas.height = innerHeight; mouse.radius = (canvas.height / 120) * (canvas.width / 120); initParticles(); });
 
-        function animate2D() {
-            requestAnimationFrame(animate2D);
-            ctx.clearRect(0, 0, innerWidth, innerHeight);
-            for (let i = 0; i < particlesArray.length; i++) {
-                particlesArray[i].update();
-            }
-            connect();
-        }
-        
-        initParticles();
-        animate2D();
-
-        window.addEventListener('resize', () => {
-            canvas.width = innerWidth;
-            canvas.height = innerHeight;
-            mouse.radius = (canvas.height / 120) * (canvas.width / 120);
-            initParticles();
-        });
-
-
-        // --- Globals ---
-        let schedule = {};
-        let taskStates = {};
+        // --- Globals & UI Elements ---
+        let schedule = {}, taskStates = {}, charts = {};
         const today = new Date().getDay();
-        let charts = {};
-
-        // --- UI Elements ---
-        const addNewTaskBtn = document.getElementById('add-new-task-main');
-        const modal = document.getElementById('task-modal');
-        const modalTitle = document.getElementById('modal-title');
-        const modalViewContent = document.getElementById('modal-view-content');
-        const modalFormContent = document.getElementById('modal-form-content');
-        const modalTaskForm = document.getElementById('modal-task-form');
-        const modalDeleteConfirm = document.getElementById('modal-delete-confirm');
-        const modalViewButtons = document.getElementById('modal-view-buttons');
+        const modal = document.getElementById('task-modal'), modalTitle = document.getElementById('modal-title'), modalViewContent = document.getElementById('modal-view-content'), modalFormContent = document.getElementById('modal-form-content'), modalTaskForm = document.getElementById('modal-task-form'), modalDeleteConfirm = document.getElementById('modal-delete-confirm'), modalViewButtons = document.getElementById('modal-view-buttons'), taskSuggestionButtonsContainer = document.getElementById('task-suggestion-buttons'), durationButtonsContainer = document.getElementById('duration-buttons'), timeSlotContainer = document.getElementById('time-slot-container'), timeSlotDropdown = document.getElementById('time-slot-dropdown'), customTimeInputs = document.getElementById('custom-time-inputs'), customTimeToggleBtn = document.getElementById('custom-time-toggle-btn'), daySelectInModal = document.getElementById('modal-task-day');
 
         // --- Constants ---
-        const categoryColors = {
-            health: 'bg-sky-100 border-sky-400', personal: 'bg-slate-100 border-slate-400',
-            work: 'bg-red-100 border-red-400', growth: 'bg-green-100 border-green-400',
-            relax: 'bg-purple-100 border-purple-400'
-        };
-        const chartCategoryColors = {
-            health: '#38bdf8', personal: '#94a3b8', work: '#f87171',
-            growth: '#4ade80', relax: '#a78bfa'
-        };
+        const categoryColors = { health: 'bg-sky-100 border-sky-400', personal: 'bg-slate-100 border-slate-400', work: 'bg-red-100 border-red-400', growth: 'bg-green-100 border-green-400', relax: 'bg-purple-100 border-purple-400' };
+        const chartCategoryColors = { health: '#38bdf8', personal: '#94a3b8', work: '#f87171', growth: '#4ade80', relax: '#a78bfa' };
+        const DURATION_OPTIONS = [ { label: '15m', value: 15 }, { label: '30m', value: 30 }, { label: '45m', value: 45 }, { label: '1h', value: 60 }, { label: '1h 30m', value: 90 }, { label: '2h', value: 120 } ];
+        const TASK_SUGGESTIONS = ['Breakfast', 'Exercise', 'Reading', 'Planning', 'Meditation', 'Lunch', 'Dinner', 'Work Block'];
 
         // --- Pomodoro Timer ---
         const pomodoro = {
@@ -328,14 +313,10 @@
         };
         
         // --- Data Persistence ---
-        function saveSchedule() { localStorage.setItem('userProductivityScheduleV3', JSON.stringify(schedule)); }
-        function loadSchedule() { const s = localStorage.getItem('userProductivityScheduleV3'); schedule = s ? JSON.parse(s) : { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] }; }
-        function saveTaskStates() { localStorage.setItem('productivityTaskStatesV3', JSON.stringify(taskStates)); }
-        function loadTaskStates() {
-            const s = localStorage.getItem('productivityTaskStatesV3');
-            taskStates = s ? JSON.parse(s) : {};
-            Object.values(schedule).flat().forEach(task => { if (!taskStates[task.id]) taskStates[task.id] = { completed: false }; });
-        }
+        function saveSchedule() { localStorage.setItem('userProductivityScheduleV5', JSON.stringify(schedule)); }
+        function loadSchedule() { const s = localStorage.getItem('userProductivityScheduleV5'); schedule = s ? JSON.parse(s) : { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] }; }
+        function saveTaskStates() { localStorage.setItem('productivityTaskStatesV5', JSON.stringify(taskStates)); }
+        function loadTaskStates() { const s = localStorage.getItem('productivityTaskStatesV5'); taskStates = s ? JSON.parse(s) : {}; Object.values(schedule).flat().forEach(task => { if (!taskStates[task.id]) taskStates[task.id] = { completed: false }; }); }
 
         // --- Core App Logic ---
         function init() { loadSchedule(); loadTaskStates(); renderTimetable(); updateAll(); setupDashboardEventListeners(); }
@@ -345,9 +326,9 @@
             e.preventDefault();
             const taskId = modal.dataset.currentTaskId;
             const title = document.getElementById('modal-task-title-input').value, day = document.getElementById('modal-task-day').value, category = document.getElementById('modal-task-category').value, startTime = document.getElementById('modal-task-start-time').value, endTime = document.getElementById('modal-task-end-time').value, points = parseInt(document.getElementById('modal-task-points').value, 10), pomodoro = document.getElementById('modal-task-pomodoro').checked;
-            if (!title || !startTime || !endTime) return;
+            if (!title || !startTime || !endTime) { alert("Please select a time slot or enter a custom time."); return; }
             const start = new Date(`1970-01-01T${startTime}:00`), end = new Date(`1970-01-01T${endTime}:00`);
-            if (end <= start) return;
+            if (end <= start) { alert("End time must be after start time."); return; }
             const duration = (end - start) / (1000 * 60 * 60);
             const taskData = { title, category, points, pomodoro, time: `${startTime} - ${endTime}`, duration: parseFloat(duration.toFixed(2)) };
             if (taskId) {
@@ -358,11 +339,72 @@
         }
         function promptForDelete() { modalViewButtons.classList.add('hidden'); modalDeleteConfirm.classList.remove('hidden'); }
         function cancelDeletePrompt() { modalViewButtons.classList.remove('hidden'); modalDeleteConfirm.classList.add('hidden'); }
-        function executeDelete() {
-            const taskId = modal.dataset.currentTaskId, day = findTaskDay(taskId);
-            if (day !== -1) { schedule[day] = schedule[day].filter(t => t.id != taskId); delete taskStates[taskId]; saveSchedule(); saveTaskStates(); renderTimetable(); updateAll(); closeModal(); }
-        }
+        function executeDelete() { const taskId = modal.dataset.currentTaskId, day = findTaskDay(taskId); if (day !== -1) { schedule[day] = schedule[day].filter(t => t.id != taskId); delete taskStates[taskId]; saveSchedule(); saveTaskStates(); renderTimetable(); updateAll(); closeModal(); } }
         function findTaskDay(taskId) { for (const day in schedule) { if (schedule[day].some(t => t.id == taskId)) return day; } return -1; }
+
+        // --- Time Suggestion Logic ---
+        function timeStringToMinutes(timeStr) { const [hours, minutes] = timeStr.split(':').map(Number); return hours * 60 + minutes; }
+        function minutesToTimeString(minutes) { const h = Math.floor(minutes / 60).toString().padStart(2, '0'); const m = (minutes % 60).toString().padStart(2, '0'); return `${h}:${m}`; }
+        
+        function updateDurationButtons(dayIndex, taskIdToIgnore = null) {
+            const freeSlots = findFreeTimeSlots(dayIndex, taskIdToIgnore);
+            const maxFreeDuration = Math.max(0, ...freeSlots.map(slot => slot.end - slot.start));
+            
+            durationButtonsContainer.innerHTML = '';
+            DURATION_OPTIONS.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'duration-btn px-3 py-1 rounded-md text-sm font-semibold transition';
+                btn.textContent = opt.label;
+                btn.dataset.duration = opt.value;
+                btn.disabled = opt.value > maxFreeDuration;
+                durationButtonsContainer.appendChild(btn);
+            });
+            timeSlotContainer.classList.add('hidden');
+        }
+
+        function populateTimeSlotsForDuration(dayIndex, duration, taskIdToIgnore = null) {
+            const freeSlots = findFreeTimeSlots(dayIndex, taskIdToIgnore);
+            let optionsHtml = '<option value="" selected disabled>Select a time...</option>';
+            
+            freeSlots.forEach(slot => {
+                if (slot.end - slot.start >= duration) {
+                    let currentTime = slot.start;
+                    while (currentTime + duration <= slot.end) {
+                        const endTime = currentTime + duration;
+                        optionsHtml += `<option data-start-time="${minutesToTimeString(currentTime)}" data-end-time="${minutesToTimeString(endTime)}">${minutesToTimeString(currentTime)} - ${minutesToTimeString(endTime)}</option>`;
+                        currentTime += 15; // Suggest slots every 15 minutes
+                    }
+                }
+            });
+
+            if (optionsHtml === '<option value="" selected disabled>Select a time...</option>') {
+                optionsHtml = '<option value="" selected disabled>No slots for this duration.</option>';
+            }
+            
+            timeSlotDropdown.innerHTML = optionsHtml;
+            timeSlotContainer.classList.remove('hidden');
+        }
+
+        function findFreeTimeSlots(dayIndex, taskIdToIgnore = null) {
+            const tasksForDay = (schedule[dayIndex] || []).filter(task => task.id != taskIdToIgnore).map(task => { const [start, end] = task.time.split(' - '); return { start: timeStringToMinutes(start), end: timeStringToMinutes(end) }; }).sort((a, b) => a.start - b.start);
+            const freeSlots = []; let lastEndTime = 0;
+            tasksForDay.forEach(task => { if (task.start > lastEndTime) { freeSlots.push({ start: lastEndTime, end: task.start }); } lastEndTime = Math.max(lastEndTime, task.end); });
+            if (lastEndTime < 1440) { freeSlots.push({ start: lastEndTime, end: 1440 }); }
+            return freeSlots;
+        }
+
+        function populateTaskSuggestions() {
+            taskSuggestionButtonsContainer.innerHTML = '';
+            TASK_SUGGESTIONS.forEach(taskName => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'suggestion-btn px-3 py-1 rounded-md text-xs font-semibold';
+                btn.textContent = taskName;
+                btn.dataset.taskName = taskName;
+                taskSuggestionButtonsContainer.appendChild(btn);
+            });
+        }
 
         // --- Rendering ---
         function renderTimetable() {
@@ -423,6 +465,11 @@
         // --- Modal & Event Listeners ---
         function openModal(taskId) {
             modal.dataset.currentTaskId = taskId || ''; cancelDeletePrompt();
+            customTimeInputs.classList.add('hidden');
+            durationButtonsContainer.classList.remove('hidden');
+            timeSlotContainer.classList.add('hidden');
+            customTimeToggleBtn.textContent = 'Or Set Custom Time';
+            populateTaskSuggestions();
             if (taskId) {
                 const day = findTaskDay(taskId), task = schedule[day].find(t => t.id == taskId); if (!task) return;
                 modalTitle.textContent = task.title; document.getElementById('modal-task-time').textContent = task.time;
@@ -430,22 +477,20 @@
                 const completeBtn = document.getElementById('complete-task-btn');
                 if(taskStates[task.id]?.completed){ completeBtn.textContent = `Mark as Incomplete (-$${task.points})`; completeBtn.className = "bg-amber-500 text-white w-full py-3 rounded-lg font-bold hover:bg-amber-600 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105"; } else { completeBtn.textContent = `Mark as Complete (+$${task.points})`; completeBtn.className = "btn-primary text-white w-full py-3 rounded-lg font-bold shadow-md hover:shadow-lg transform hover:scale-105 transition-all"; }
                 showModalContent('view');
-            } else { modalTitle.textContent = "Add New Task"; modalTaskForm.reset(); document.getElementById('modal-task-day').value = today; showModalContent('form'); }
+            } else { modalTitle.textContent = "Add New Task"; modalTaskForm.reset(); daySelectInModal.value = today; updateDurationButtons(today); showModalContent('form'); }
             modal.classList.remove('hidden'); setTimeout(() => { modal.querySelector('.modal-content').classList.remove('scale-95'); }, 10);
         }
         function showModalContent(mode) { if (mode === 'form') { modalViewContent.classList.add('hidden'); modalFormContent.classList.remove('hidden'); } else { modalViewContent.classList.remove('hidden'); modalFormContent.classList.add('hidden'); } }
         function populateFormForEdit() {
             const taskId = modal.dataset.currentTaskId; if (!taskId) return;
             const day = findTaskDay(taskId), task = schedule[day].find(t => t.id == taskId);
-            document.getElementById('modal-task-title-input').value = task.title; document.getElementById('modal-task-day').value = day; document.getElementById('modal-task-category').value = task.category; const [startTime, endTime] = task.time.split(' - '); document.getElementById('modal-task-start-time').value = startTime; document.getElementById('modal-task-end-time').value = endTime; document.getElementById('modal-task-points').value = task.points; document.getElementById('modal-task-pomodoro').checked = task.pomodoro;
+            document.getElementById('modal-task-title-input').value = task.title; daySelectInModal.value = day; document.getElementById('modal-task-category').value = task.category; const [startTime, endTime] = task.time.split(' - '); document.getElementById('modal-task-start-time').value = startTime; document.getElementById('modal-task-end-time').value = endTime; document.getElementById('modal-task-points').value = task.points; document.getElementById('modal-task-pomodoro').checked = task.pomodoro;
+            updateDurationButtons(day, taskId);
             modalTitle.textContent = "Edit Task"; showModalContent('form');
         }
-        function closeModal() {
-            pomodoro.stop(); modal.querySelector('.modal-content').classList.add('scale-95');
-            setTimeout(() => { modal.classList.add('hidden'); cancelDeletePrompt(); }, 300);
-        }
+        function closeModal() { pomodoro.stop(); modal.querySelector('.modal-content').classList.add('scale-95'); setTimeout(() => { modal.classList.add('hidden'); cancelDeletePrompt(); }, 300); }
         function setupDashboardEventListeners() {
-            addNewTaskBtn.addEventListener('click', () => openModal(null));
+            document.getElementById('add-new-task-main').addEventListener('click', () => openModal(null));
             document.getElementById('timetable-grid').addEventListener('click', e => { const card = e.target.closest('.task-card'); if (card) openModal(card.dataset.taskId); });
             document.getElementById('close-modal-btn').addEventListener('click', closeModal);
             modal.addEventListener('click', e => { if(e.target.id === 'task-modal') closeModal(); });
@@ -458,14 +503,12 @@
             document.getElementById('cancel-delete-btn').addEventListener('click', cancelDeletePrompt);
             document.getElementById('cancel-edit-btn').addEventListener('click', () => { if (modal.dataset.currentTaskId) { showModalContent('view'); } else { closeModal(); } });
             modalTaskForm.addEventListener('submit', handleSaveTask);
-            document.querySelectorAll('.tab-btn').forEach(button => {
-                button.addEventListener('click', () => {
-                    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active')); button.classList.add('active');
-                    document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
-                    const activeTab = document.getElementById(button.dataset.tab); activeTab.classList.remove('hidden');
-                    if (button.dataset.tab === 'analytics') updateAnalytics(); if (button.dataset.tab === 'plan') updatePlanVisuals();
-                });
-            });
+            daySelectInModal.addEventListener('change', (e) => updateDurationButtons(e.target.value, modal.dataset.currentTaskId));
+            customTimeToggleBtn.addEventListener('click', () => { const isHidden = customTimeInputs.classList.contains('hidden'); customTimeInputs.classList.toggle('hidden'); durationButtonsContainer.classList.toggle('hidden'); timeSlotContainer.classList.add('hidden'); customTimeToggleBtn.textContent = isHidden ? 'Use Suggestions' : 'Set Custom Time'; });
+            durationButtonsContainer.addEventListener('click', (e) => { if (e.target.tagName === 'BUTTON' && !e.target.disabled) { durationButtonsContainer.querySelectorAll('button').forEach(btn => btn.classList.remove('selected')); e.target.classList.add('selected'); const duration = parseInt(e.target.dataset.duration); populateTimeSlotsForDuration(daySelectInModal.value, duration, modal.dataset.currentTaskId); } });
+            timeSlotDropdown.addEventListener('change', (e) => { const selectedOption = e.target.options[e.target.selectedIndex]; if (selectedOption.dataset.startTime) { document.getElementById('modal-task-start-time').value = selectedOption.dataset.startTime; document.getElementById('modal-task-end-time').value = selectedOption.dataset.endTime; } });
+            taskSuggestionButtonsContainer.addEventListener('click', (e) => { if (e.target.tagName === 'BUTTON') { document.getElementById('modal-task-title-input').value = e.target.dataset.taskName; taskSuggestionButtonsContainer.querySelectorAll('button').forEach(btn => btn.classList.remove('selected')); e.target.classList.add('selected'); } });
+            document.querySelectorAll('.tab-btn').forEach(button => { button.addEventListener('click', () => { document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active')); button.classList.add('active'); document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden')); const activeTab = document.getElementById(button.dataset.tab); activeTab.classList.remove('hidden'); if (button.dataset.tab === 'analytics') updateAnalytics(); if (button.dataset.tab === 'plan') updatePlanVisuals(); }); });
         }
         init();
     });
